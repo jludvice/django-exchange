@@ -38,19 +38,23 @@ class BaseAdapter(object):
                 rate = self._get_rate_through_usd(source.code,
                                                   target.code,
                                                   usd_exchange_rates)
+                if rate:
 
-                exchange_rate = ExchangeRate(source=source,
-                                             target=target,
-                                             rate=rate)
+                    exchange_rate = ExchangeRate(source=source,
+                                                 target=target,
+                                                 rate=rate)
 
-                if (source.code, target.code) in pairs:
-                    updates.append(exchange_rate)
-                    logger.debug('exchange rate updated %s/%s=%s'
-                                 % (source, target, rate))
+
+                    if (source.code, target.code) in pairs:
+                        updates.append(exchange_rate)
+                        logger.debug('exchange rate updated %s/%s=%s'
+                                     % (source, target, rate))
+                    else:
+                        inserts.append(exchange_rate)
+                        logger.debug('exchange rate created %s/%s=%s'
+                                     % (source, target, rate))
                 else:
-                    inserts.append(exchange_rate)
-                    logger.debug('exchange rate created %s/%s=%s'
-                                 % (source, target, rate))
+                    logger.error('no rate for %s / %s' %(source, target))
 
             logger.info('exchange rates updated for %s' % source.code)
         logger.info("Updating %s rows" % len(updates))
@@ -62,11 +66,17 @@ class BaseAdapter(object):
     def _get_rate_through_usd(self, source, target, usd_rates):
         # from: https://openexchangerates.org/documentation#how-to-use
         # gbp_hkd = usd_hkd * (1 / usd_gbp)
-        usd_source = usd_rates[source]
-        usd_target = usd_rates[target]
-        rate = usd_target * (Decimal(1.0) / usd_source)
-        rate = rate.quantize(Decimal('0.123456'))  # round to 6 decimal places
-        return rate
+
+        # usd_source = usd_rates[source]
+        usd_source = usd_rates.get(source, None)
+        # usd_target = usd_rates[target]
+        usd_target = usd_rates.get(target, None)
+
+        if usd_source and usd_target:
+            rate = usd_target * (Decimal(1.0) / usd_source)
+            rate = rate.quantize(Decimal('0.123456'))  # round to 6 decimal places
+            return rate
+        return None
 
     def get_currencies(self):
         """Subclasses must implement this to provide all currency data
